@@ -1,6 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:news/screens/homescreen.dart';
 import 'package:news/screens/signup.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignIn extends StatefulWidget {
   const SignIn({Key? key}) : super(key: key);
@@ -10,9 +13,62 @@ class SignIn extends StatefulWidget {
 }
 
 class _SignInState extends State<SignIn> {
+  var emailController = TextEditingController();
+
+  var passwordController = TextEditingController();
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
+
+  void showSnackBar(String? title) {
+    final snackbar = SnackBar(
+      content: Text(
+        title!,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 15),
+      ),
+    );
+    ScaffoldMessenger.of(scaffoldKey.currentState!.context)
+        .showSnackBar(snackbar);
+  }
+
+  void login() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final User? user = (await _auth
+            .signInWithEmailAndPassword(
+                email: emailController.text, password: passwordController.text)
+            .catchError((ex) {
+      //check error and display message
+      //Navigator.pop(context);
+      FirebaseAuthException thisEx = ex;
+      if (thisEx.code == 'user-not-found') {
+        showSnackBar('User not registered');
+      } else {
+        showSnackBar(thisEx.message);
+      }
+    }))
+        .user;
+    if (user != null) {
+      //verify login
+      DatabaseReference userRef =
+          FirebaseDatabase.instance.ref().child('users/${user.uid}');
+      showSnackBar('Successfully Logged in');
+      prefs.setBool('isLoggedIn', true);
+      userRef.once().then((DatabaseEvent snapshot) {
+        if (snapshot.snapshot.value != null) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) {
+            return const HomeScreen();
+          }));
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: scaffoldKey,
       body: Stack(
         children: [
           Image.asset(
@@ -74,17 +130,21 @@ class _SignInState extends State<SignIn> {
                         borderRadius:
                             const BorderRadius.all(Radius.circular(25))),
                     child: Row(
-                      children: const [
-                        Text('Email: ', style: TextStyle(color: Colors.white),),
-                        SizedBox(
+                      children: [
+                        const Text(
+                          'Email: ',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        const SizedBox(
                           width: 8,
                         ),
                         Flexible(
                             child: TextField(
+                          controller: emailController,
                           keyboardType: TextInputType.emailAddress,
                           cursorColor: Colors.white,
-                          style: TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
                               border: UnderlineInputBorder(
                                   borderSide: BorderSide.none)),
                         ))
@@ -103,18 +163,22 @@ class _SignInState extends State<SignIn> {
                         borderRadius:
                             const BorderRadius.all(Radius.circular(25))),
                     child: Row(
-                      children: const [
-                        Text('Password: ', style: TextStyle(color: Colors.white),),
-                        SizedBox(
+                      children: [
+                        const Text(
+                          'Password: ',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        const SizedBox(
                           width: 8,
                         ),
                         Flexible(
                           child: TextField(
+                            controller: passwordController,
                             cursorColor: Colors.white,
-                            style: TextStyle(color: Colors.white),
+                            style: const TextStyle(color: Colors.white),
                             obscureText: true,
                             keyboardType: TextInputType.visiblePassword,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                                 border: UnderlineInputBorder(
                                     borderSide: BorderSide.none)),
                           ),
@@ -134,7 +198,7 @@ class _SignInState extends State<SignIn> {
                   ),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context){return const HomeScreen();}));
+                      login();
                     },
                     child: const Text(
                       'Sign in',
@@ -196,7 +260,10 @@ class _SignInState extends State<SignIn> {
                       const Text('Don\'t have an account?'),
                       TextButton(
                         onPressed: () {
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context){return const SignUp();}));
+                          Navigator.pushReplacement(context,
+                              MaterialPageRoute(builder: (context) {
+                            return const SignUp();
+                          }));
                         },
                         child: const Text(
                           'Sign Up',

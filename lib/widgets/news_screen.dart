@@ -7,6 +7,7 @@ import 'package:news/models/news_tile_model.dart';
 import 'news_tile.dart';
 
 List<News> news = [];
+// ignore: prefer_typing_uninitialized_variables
 var newsData;
 
 Future<dynamic> getData(List favs) async {
@@ -30,6 +31,7 @@ Future<dynamic> getData(List favs) async {
       });
     }
   } else {
+    // ignore: avoid_print
     print('Something went wrong');
   }
 }
